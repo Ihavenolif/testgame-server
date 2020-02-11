@@ -58,6 +58,7 @@ app.post("/", function (req, res) {
 })
 
 server = app.listen(PORT, function () {
-    console.log("Server is running on port ${ PORT }. Hit CTRL+C to stop.");
+    console.log("Server is running. Hit CTRL+C to stop.");
+    console.log(PORT)
 })
 
