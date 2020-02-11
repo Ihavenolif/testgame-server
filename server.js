@@ -3,6 +3,8 @@ cors = require("cors")
 bodyParser = require("body-parser")
 app = express()
 
+PORT = process.env.PORT || 3000;
+
 gamesList = {}
 runningGamesList = {}
 
@@ -55,7 +57,7 @@ app.post("/", function (req, res) {
     }
 })
 
-server = app.listen(7000, function () {
-    console.log("Server is running. Hit CTRL+C to stop.");
+server = app.listen(PORT, function () {
+    console.log("Server is running on port ${ PORT }. Hit CTRL+C to stop.");
 })
 
