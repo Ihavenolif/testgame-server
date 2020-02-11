@@ -1,8 +1,25 @@
 {
-    "name": "testgame-server",
-    "description": "a really cool app",
-    "version": "1.0.0",
-    "engines": {
-      "node": "13.5.0"
-    }
+  "name": "testgame-server",
+  "version": "1.0.0",
+  "description": "testing server",
+  "main": "server.js",
+  "scripts": {
+    "test": "node server.js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheWallovec/testgame-server.git"
+  },
+  "author": "TheWallovec",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TheWallovec/testgame-server/issues"
+  },
+  "homepage": "https://github.com/TheWallovec/testgame-server#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1"
   }
+}
