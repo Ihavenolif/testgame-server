@@ -3,7 +3,7 @@ cors = require("cors")
 bodyParser = require("body-parser")
 app = express()
 
-PORT = process.env.PORT || 3000;
+PORT = process.env.PORT || 7000;
 
 gamesList = {}
 runningGamesList = {}
@@ -12,6 +12,18 @@ function copyObj(object) {
     result = {}
     for (const x in object) {
         result[x] = object[x]
+    }
+    return result
+}
+
+function sendableGamesList(){
+    result = {}
+    for(const index in gamesList){
+        result[index] = {}
+        result[index].player1 = gamesList[index].player1
+        result[index].player2 = gamesList[index].player2
+        result[index].password = gamesList[index].password == "" ? "no" : "yes"
+        result[index].name = gamesList[index].name
     }
     return result
 }
@@ -28,7 +40,7 @@ app.post("/", function (req, res) {
     console.log(req.ip)
     if (input["getGamesList"] != undefined) {
         console.log("getGamesList request received")
-        res.send(JSON.stringify(gamesList))
+        res.send(JSON.stringify(sendableGamesList()))
     } else if (input["createGame"] != undefined) {
         console.log("createGame request received")
         if (gamesList[input["gameName"]] == undefined && runningGamesList[input.gameName] == undefined) {
@@ -54,6 +66,8 @@ app.post("/", function (req, res) {
         runningGamesList[input.name].gameStarted = false
         console.log(runningGamesList[input.name])
         res.send(JSON.stringify(runningGamesList[input.name]))
+    } else if(input.checkConnection != undefined){
+        res.send("Connection Successful!")
     }
 })
 
