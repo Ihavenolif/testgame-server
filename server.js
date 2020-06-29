@@ -38,6 +38,7 @@ app.get("/", function (req, res) {
 app.post("/", function (req, res) {
     input = req.body
     console.log(req.ip)
+    console.log(input)
     if (input["getGamesList"] != undefined) {
         console.log("getGamesList request received")
         res.send(JSON.stringify(sendableGamesList()))
@@ -57,10 +58,19 @@ app.post("/", function (req, res) {
             }))
         }
     } else if (input.joinGame != undefined) {
+        /*
+
+        accepts this object {
+            name: string
+            password: string
+            playerName: string
+        }
+
+        */
         console.log("joinGame request received")
         runningGamesList[input.name] = copyObj(gamesList[input.name])
         gamesList[input.name] = undefined
-        runningGamesList[input.name].player2 = input.player2
+        runningGamesList[input.name].player2 = input.playerName
         runningGamesList[input.name].player1ready = false
         runningGamesList[input.name].player2ready = false
         runningGamesList[input.name].gameStarted = false
@@ -68,6 +78,13 @@ app.post("/", function (req, res) {
         res.send(JSON.stringify(runningGamesList[input.name]))
     } else if(input.checkConnection != undefined){
         res.send("Connection Successful!")
+    } else if(input.checkGameStatus != undefined){
+        if(gamesList[input.gameName] == undefined){
+            res.send(JSON.stringify(runningGamesList[input.gameName]))
+        } else{
+            res.send(JSON.stringify(gamesList[input.gameName]))
+        }
+        
     }
 })
 
