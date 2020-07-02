@@ -1,3 +1,5 @@
+const e = require("express");
+
 /*
 ---VARIABLES---
 */
@@ -108,6 +110,10 @@ app.post("/", function (req, res) {
                         runningGamesList[name].gameStarted = true
                         runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
                         runningGamesList[name].player1 = {
+                            shootRechargeTime: 1,
+                            bulletWidth: 4,
+                            shootCd: 0,
+                            shots: [],
                             left: false,
                             up: false,
                             right: false,
@@ -118,6 +124,10 @@ app.post("/", function (req, res) {
                             xpos: 350
                         }
                         runningGamesList[name].player2 = {
+                            shootRechargeTime: 1,
+                            bulletWidth: 4,
+                            shootCd: 0,
+                            shots: [],
                             left: false,
                             up: false,
                             right: false,
@@ -197,9 +207,68 @@ server = app.listen(PORT, function () {
 */
 
 function game(game){
+    /*
+    ---PLAYER MOVEMENT---
+    */
     if(game.gameFinished) game = undefined
-    if(game.player1.left && game.player1.xpos >= 0) game.player1.xpos -= 6
-    if(game.player1.right && game.player1.xpos <= 700) game.player1.xpos += 6
-    if(game.player2.left && game.player2.xpos >= 0) game.player2.xpos -= 6
-    if(game.player2.right && game.player2.xpos <= 700) game.player2.xpos += 6
+    if(game.player1.left && game.player1.xpos >= 0){
+        if(game.player1.shift && game.player1.ctrl || !game.player1.shift && !game.player1.ctrl) game.player1.xpos -= 6
+        if(game.player1.shift && !game.player1.ctrl) game.player1.xpos -= 12
+        if(!game.player1.shift && game.player1.ctrl) game.player1.xpos -= 3
+    } 
+    if(game.player1.right && game.player1.xpos <= 700){
+        if(game.player1.shift && game.player1.ctrl || !game.player1.shift && !game.player1.ctrl) game.player1.xpos += 6
+        if(game.player1.shift && !game.player1.ctrl) game.player1.xpos += 12
+        if(!game.player1.shift && game.player1.ctrl) game.player1.xpos += 3
+    } 
+
+    if(game.player2.left && game.player2.xpos >= 0){
+        if(game.player2.shift && game.player2.ctrl || !game.player2.shift && !game.player2.ctrl) game.player2.xpos -= 6
+        if(game.player2.shift && !game.player2.ctrl) game.player2.xpos -= 12
+        if(!game.player2.shift && game.player2.ctrl) game.player2.xpos -= 3
+    } 
+    if(game.player2.right && game.player2.xpos <= 700){
+        if(game.player2.shift && game.player2.ctrl || !game.player2.shift && !game.player2.ctrl) game.player2.xpos += 6
+        if(game.player2.shift && !game.player2.ctrl) game.player2.xpos += 12
+        if(!game.player2.shift && game.player2.ctrl) game.player2.xpos += 3
+    } 
+    /*
+    ---SHOOTING---
+    */
+    if(game.player1.space && game.player1.shootCd == 0){
+        game.player1.shots.push({
+            xpos: game.player1.xpos,
+            ypos: 650,
+            width: game.player1.bulletWidth,
+            height: 20,
+            id: game.player1.shots.length,
+            alive: true
+          })
+        game.player1.shootCd = game.player1.shootRechargeTime * 60
+    }
+    if(game.player2.space && game.player2.shootCd == 0){
+        game.player2.shots.push({
+            xpos: game.player2.xpos,
+            ypos: 650,
+            width: game.player2.bulletWidth,
+            height: 20,
+            id: game.player2.shots.length,
+            alive: true
+          })
+        game.player2.shootCd = game.player2.shootRechargeTime * 60
+    }
+    /*
+    ---SHOT MOVEMENT---
+    */
+    for(x of game.player1.shots){
+        x.ypos -= 10
+    }
+    for(x of game.player2.shots){
+        x.ypos -= 10
+    }
+    /*
+    ---SHOT COOLDOWN RECOVERY---
+    */
+    if(game.player1.shootCd > 0) game.player1.shootCd--
+    if(game.player2.shootCd > 0) game.player2.shootCd--
 }
