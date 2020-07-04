@@ -1,5 +1,3 @@
-const e = require("express");
-
 /*
 ---VARIABLES---
 */
@@ -7,9 +5,11 @@ express = require("express")
 cors = require("cors")
 bodyParser = require("body-parser")
 app = express()
+expressWs = require("express-ws")(app)
 
 PORT = process.env.PORT || 7000;
 
+connectedPlayers = []
 gamesList = {}
 runningGamesList = {}
 
@@ -44,13 +44,18 @@ function removeTimers(object){
             result[x] = object[x]
         }
     }
-    
     return result
 }
 
-function lobbyTimer(inputLocal){
-    
-}
+function filterAlive(array) {
+    result = []
+    for (x = 0; x < array.length; x++) {
+      if (array[x]) {
+        result.push(array[x])
+      }
+    }
+    return result;
+  }
 
 /*
 ---SERVER SETUP---
@@ -59,6 +64,154 @@ function lobbyTimer(inputLocal){
 app.use(cors())
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(function (req, res, next) {
+    req.testing = 'testing';
+    return next();
+  })
+
+app.ws("/", function(ws, req){
+    ws.on("message", function(msg){
+        input = JSON.parse(msg)
+        switch(input.request){
+            case "login":
+                connectedPlayers.push(input.playerName)
+                ws.send(JSON.stringify({
+                    request: "loginSuccessful",
+                    message: "Welcome, " + input.playerName
+                }))
+                break
+            case "getGamesList":
+                temp = sendableGamesList()
+                temp.request = "gamesList"
+                ws.send(JSON.stringify(temp))
+                break
+            case "createGame":
+                if (gamesList[input["gameName"]] == undefined && runningGamesList[input.gameName] == undefined) {
+                    gamesList[input["gameName"]] = {
+                        name: input["gameName"],
+                        password: input["password"],
+                        player1: input["playerName"],
+                        player2: null
+                    }
+                    ws.send(JSON.stringify(input))
+                } else {
+                    ws.send(JSON.stringify({
+                        request: "gameAlreadyExists"
+                    }))
+                }
+                break
+            case "joinGame":
+                console.log(gamesList[input.name])
+                if(input.password == gamesList[input.name].password){
+                    runningGamesList[input.name] = copyObj(gamesList[input.name])
+                    gamesList[input.name] = undefined
+                    runningGamesList[input.name].player2 = input.playerName
+                    runningGamesList[input.name].player1ready = false
+                    runningGamesList[input.name].player2ready = false
+                    runningGamesList[input.name].gameStarted = false
+                    runningGamesList[input.name].gameFinished = false
+                    if(runningGamesList[input.name]){
+                        runningGamesList[input.name].lobbyTimer = setInterval((name) => {
+                            if(runningGamesList[name].player1ready && runningGamesList[name].player2ready){
+                                clearInterval(runningGamesList[name].lobbyTimer)
+                                runningGamesList[name].gameStarted = true
+                                runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
+                                runningGamesList[name].player1 = {
+                                    money: 0,
+                                    shootRechargeTime: 1,
+                                    bulletWidth: 4,
+                                    shootCd: 0,
+                                    shots: [],
+                                    left: false,
+                                    up: false,
+                                    right: false,
+                                    down: false,
+                                    ctrl: false,
+                                    shift: false,
+                                    space: false,
+                                    xpos: 350
+                                }
+                                runningGamesList[name].player2 = {
+                                    money: 0,
+                                    shootRechargeTime: 1,
+                                    bulletWidth: 4,
+                                    shootCd: 0,
+                                    shots: [],
+                                    left: false,
+                                    up: false,
+                                    right: false,
+                                    down: false,
+                                    ctrl: false,
+                                    shift: false,
+                                    space: false,
+                                    xpos: 350
+                                }
+                            }
+                        }, 1000, input.name);
+                    }
+                    temp = removeTimers(runningGamesList[input.name])
+                    temp.request = "joinGame"
+                    ws.send(JSON.stringify(temp))
+                }
+                break
+            case "checkGameStatus":
+                if(gamesList[input.gameName] == undefined){
+                    temp = removeTimers(runningGamesList[input.gameName])
+                    temp.request = "checkGameStatus"
+                    ws.send(JSON.stringify(temp))
+                } else{
+                    temp = gamesList[input.gameName]
+                    temp.request = "checkGameStatus"
+                    ws.send(JSON.stringify(temp))
+                }
+                break
+            case "readyCheck":
+                if(input.player == 1){
+                    if(runningGamesList[input.name].player1ready){
+                        runningGamesList[input.name].player1ready = false
+                    }else{
+                        runningGamesList[input.name].player1ready = true
+                    }
+                }else{
+                    if(runningGamesList[input.name].player2ready){
+                        runningGamesList[input.name].player2ready = false
+                    }else{
+                        runningGamesList[input.name].player2ready = true
+                    }
+                }
+                temp = removeTimers(runningGamesList[input.gameName])
+                temp.request = "readyCheck"
+                ws.send(JSON.stringify(temp))
+                break
+            case "game":
+                if(input.player == 1){
+                    runningGamesList[input.name].player1.left = input.left
+                    runningGamesList[input.name].player1.up = input.up
+                    runningGamesList[input.name].player1.right = input.right
+                    runningGamesList[input.name].player1.down = input.down
+                    runningGamesList[input.name].player1.space = input.space
+                    runningGamesList[input.name].player1.shift = input.shift
+                    runningGamesList[input.name].player1.ctrl = input.ctrl
+                } else{
+                    runningGamesList[input.name].player2.left = input.left
+                    runningGamesList[input.name].player2.up = input.up
+                    runningGamesList[input.name].player2.right = input.right
+                    runningGamesList[input.name].player2.down = input.down
+                    runningGamesList[input.name].player2.space = input.space
+                    runningGamesList[input.name].player2.shift = input.shift
+                    runningGamesList[input.name].player2.ctrl = input.ctrl
+                }
+                temp = removeTimers(runningGamesList[input.name])
+                temp.request = "game"
+                ws.send(JSON.stringify(temp))
+                
+        }
+    })
+    ws.on("close", () => {
+        console.log("Connection closed")
+    })
+})
+
 app.get("/", function (req, res) {
     res.send("Hello World")
 })
@@ -66,10 +219,8 @@ app.get("/", function (req, res) {
 app.post("/", function (req, res) {
     input = req.body
     if (input["getGamesList"] != undefined) {
-        console.log("getGamesList request received")
         res.send(JSON.stringify(sendableGamesList()))
     } else if (input["createGame"] != undefined) {
-        console.log("createGame request received")
         if (gamesList[input["gameName"]] == undefined && runningGamesList[input.gameName] == undefined) {
             gamesList[input["gameName"]] = {
                 name: input["gameName"],
@@ -95,7 +246,6 @@ app.post("/", function (req, res) {
 
         */
         if(input.password == gamesList[input.name].password){
-            console.log("joinGame request received")
             runningGamesList[input.name] = copyObj(gamesList[input.name])
             gamesList[input.name] = undefined
             runningGamesList[input.name].player2 = input.playerName
@@ -110,6 +260,7 @@ app.post("/", function (req, res) {
                         runningGamesList[name].gameStarted = true
                         runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
                         runningGamesList[name].player1 = {
+                            money: 0,
                             shootRechargeTime: 1,
                             bulletWidth: 4,
                             shootCd: 0,
@@ -124,6 +275,7 @@ app.post("/", function (req, res) {
                             xpos: 350
                         }
                         runningGamesList[name].player2 = {
+                            money: 0,
                             shootRechargeTime: 1,
                             bulletWidth: 4,
                             shootCd: 0,
@@ -271,4 +423,21 @@ function game(game){
     */
     if(game.player1.shootCd > 0) game.player1.shootCd--
     if(game.player2.shootCd > 0) game.player2.shootCd--
+    /*
+    ---SHOTS CLEANUP---
+    */
+    for(x of game.player1.shots){
+        if(x.ypos < 0) x.alive = false //IF A SHOT EXITS THE MAP
+    }
+    for(x of game.player2.shots){
+        if(x.ypos < 0) x.alive = false
+    }
+
+    game.player1.shots = filterAlive(game.player1.shots)
+    game.player2.shots = filterAlive(game.player2.shots)
+    /*
+    ---PASSIVE MONEY GAIN---
+    */
+    game.player1.money += 1/30
+    game.player2.money += 1/30
 }
