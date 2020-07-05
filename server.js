@@ -50,12 +50,31 @@ function removeTimers(object){
 function filterAlive(array) {
     result = []
     for (x = 0; x < array.length; x++) {
-      if (array[x]) {
+      if (array[x].alive) {
         result.push(array[x])
       }
     }
     return result;
-  }
+}
+
+/*
+---COLLISION FUNCTIONS---
+*/
+function collidesWithX(obj1, obj2) {
+    if (Math.abs(obj1.xpos - obj2.xpos) < Math.abs(obj1.width - obj2.width)) {
+      return true;
+    } else return false
+}
+
+function collidesWithY(obj1, obj2) {
+    if (Math.abs(obj1.ypos - (700 - obj2.ypos)) < (Math.abs(obj1.height - obj2.height) + Math.min(obj1.height, obj2.height))) {
+      return true;
+    } else return false
+}
+
+function collidesWith(obj1, obj2) {
+    return collidesWithX(obj1, obj2) && collidesWithY(obj1, obj2);
+}
 
 /*
 ---SERVER SETUP---
@@ -117,6 +136,8 @@ app.ws("/", function(ws, req){
                                 runningGamesList[name].gameStarted = true
                                 runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
                                 runningGamesList[name].player1 = {
+                                    health: 100,
+                                    soldiers: [],
                                     money: 0,
                                     shootRechargeTime: 1,
                                     bulletWidth: 4,
@@ -132,6 +153,8 @@ app.ws("/", function(ws, req){
                                     xpos: 350
                                 }
                                 runningGamesList[name].player2 = {
+                                    health: 100,
+                                    soldiers: [],
                                     money: 0,
                                     shootRechargeTime: 1,
                                     bulletWidth: 4,
@@ -204,6 +227,43 @@ app.ws("/", function(ws, req){
                 temp = removeTimers(runningGamesList[input.name])
                 temp.request = "game"
                 ws.send(JSON.stringify(temp))
+                break
+            case "yellowSoldierSpawn":
+                if(input.player == 1){
+                    if(runningGamesList[input.name].player1.money >= 10){
+                        runningGamesList[input.name].player1.soldiers.push({
+                            type: "yellow",
+                            health: 10,
+                            xpos: runningGamesList[input.name].player1.xpos,
+                            ypos: 650,
+                            alive: true,
+                            width: 20,
+                            height: 20
+                        })
+                        runningGamesList[input.name].player1.money -= 10
+                        ws.send(JSON.stringify({
+                            request: "yellowSoldierSpawn",
+                            successful: true
+                        }))
+                    }
+                }else{
+                    if(runningGamesList[input.name].player2.money >= 10){
+                        runningGamesList[input.name].player2.soldiers.push({
+                            type: "yellow",
+                            health: 10,
+                            xpos: runningGamesList[input.name].player2.xpos,
+                            ypos: 650,
+                            alive: true,
+                            width: 20,
+                            height: 20
+                        })
+                        runningGamesList[input.name].player2.money -= 10
+                        ws.send(JSON.stringify({
+                            request: "yellowSoldierSpawn",
+                            successful: true
+                        }))
+                    }
+                }
                 
         }
     })
@@ -214,140 +274,6 @@ app.ws("/", function(ws, req){
 
 app.get("/", function (req, res) {
     res.send("Hello World")
-})
-
-app.post("/", function (req, res) {
-    input = req.body
-    if (input["getGamesList"] != undefined) {
-        res.send(JSON.stringify(sendableGamesList()))
-    } else if (input["createGame"] != undefined) {
-        if (gamesList[input["gameName"]] == undefined && runningGamesList[input.gameName] == undefined) {
-            gamesList[input["gameName"]] = {
-                name: input["gameName"],
-                password: input["password"],
-                player1: input["playerName"],
-                player2: null
-            }
-            res.send(JSON.stringify(input))
-        } else {
-            res.send(JSON.stringify({
-                gameAlreadyExists: true
-            }))
-        }
-    } else if (input.joinGame != undefined) {
-        /*
-
-        accepts this object {
-            joinGame: bool
-            name: string
-            password: string
-            playerName: string
-        }
-
-        */
-        if(input.password == gamesList[input.name].password){
-            runningGamesList[input.name] = copyObj(gamesList[input.name])
-            gamesList[input.name] = undefined
-            runningGamesList[input.name].player2 = input.playerName
-            runningGamesList[input.name].player1ready = false
-            runningGamesList[input.name].player2ready = false
-            runningGamesList[input.name].gameStarted = false
-            runningGamesList[input.name].gameFinished = false
-            if(runningGamesList[input.name]){
-                runningGamesList[input.name].lobbyTimer = setInterval((name) => {
-                    if(runningGamesList[name].player1ready && runningGamesList[name].player2ready){
-                        clearInterval(runningGamesList[name].lobbyTimer)
-                        runningGamesList[name].gameStarted = true
-                        runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
-                        runningGamesList[name].player1 = {
-                            money: 0,
-                            shootRechargeTime: 1,
-                            bulletWidth: 4,
-                            shootCd: 0,
-                            shots: [],
-                            left: false,
-                            up: false,
-                            right: false,
-                            down: false,
-                            ctrl: false,
-                            shift: false,
-                            space: false,
-                            xpos: 350
-                        }
-                        runningGamesList[name].player2 = {
-                            money: 0,
-                            shootRechargeTime: 1,
-                            bulletWidth: 4,
-                            shootCd: 0,
-                            shots: [],
-                            left: false,
-                            up: false,
-                            right: false,
-                            down: false,
-                            ctrl: false,
-                            shift: false,
-                            space: false,
-                            xpos: 350
-                        }
-                    }
-                }, 1000, input.name);
-            }
-            res.send(JSON.stringify(removeTimers(runningGamesList[input.name])))
-        }
-    } else if(input.checkConnection != undefined){
-        res.send("Connection Successful!")
-    } else if(input.checkGameStatus != undefined){
-        if(gamesList[input.gameName] == undefined){
-            res.send(JSON.stringify(removeTimers(runningGamesList[input.gameName])))
-        } else{
-            res.send(JSON.stringify(gamesList[input.gameName]))
-        }
-        
-    } else if(input.readyCheck != undefined){
-        /*
-
-        accepts this object {
-            readyCheck: bool
-            name: string
-            player: number
-        }
-
-        */
-       if(input.player == 1){
-        if(runningGamesList[input.name].player1ready){
-            runningGamesList[input.name].player1ready = false
-        }else{
-            runningGamesList[input.name].player1ready = true
-        }
-       }else{
-        if(runningGamesList[input.name].player2ready){
-            runningGamesList[input.name].player2ready = false
-        }else{
-            runningGamesList[input.name].player2ready = true
-        }
-       }
-
-       res.send(JSON.stringify(removeTimers(runningGamesList[input.gameName])))
-    } else if(input.game != undefined){
-        if(input.player == 1){
-            runningGamesList[input.name].player1.left = input.left
-            runningGamesList[input.name].player1.up = input.up
-            runningGamesList[input.name].player1.right = input.right
-            runningGamesList[input.name].player1.down = input.down
-            runningGamesList[input.name].player1.space = input.space
-            runningGamesList[input.name].player1.shift = input.shift
-            runningGamesList[input.name].player1.ctrl = input.ctrl
-        } else{
-            runningGamesList[input.name].player2.left = input.left
-            runningGamesList[input.name].player2.up = input.up
-            runningGamesList[input.name].player2.right = input.right
-            runningGamesList[input.name].player2.down = input.down
-            runningGamesList[input.name].player2.space = input.space
-            runningGamesList[input.name].player2.shift = input.shift
-            runningGamesList[input.name].player2.ctrl = input.ctrl
-        }
-        res.send(removeTimers(runningGamesList[input.name]))
-    }
 })
 
 server = app.listen(PORT, function () {
@@ -440,4 +366,59 @@ function game(game){
     */
     game.player1.money += 1/30
     game.player2.money += 1/30
+    /*
+    ---SOLDIER MOVEMENT---
+    */
+    for(x of game.player1.soldiers){
+        switch(x.type){
+            case "yellow":
+                x.ypos -= 3
+                break
+        }
+    }
+    for(x of game.player2.soldiers){
+        switch(x.type){
+            case "yellow":
+                x.ypos -= 3
+                break
+        }
+    }
+    /*
+    ---SOLDIER CLEANUP---
+    */
+    for(x of game.player1.soldiers){
+        if(x.ypos < 0) {
+            x.alive = false 
+            game.player2.health -= 10
+        }
+    }
+    for(x of game.player2.soldiers){
+        if(x.ypos < 0) {
+            x.alive = false
+            game.player1.health -= 10
+        }
+    }
+    game.player1.soldiers = filterAlive(game.player1.soldiers)
+    game.player2.soldiers = filterAlive(game.player2.soldiers)
+    /*
+    ---COLLISIONS PEPEHANDS---
+    */
+    for(i of game.player1.soldiers){
+        for(ii of game.player2.shots){
+            if(collidesWith(i,ii)){
+                i.alive = false
+                ii.alive = false
+                game.player2.money += 10
+            }
+        }
+    }
+    for(i of game.player2.soldiers){
+        for(ii of game.player1.shots){
+            if(collidesWith(i,ii)){
+                i.alive = false
+                ii.alive = false
+                game.player1.money += 10
+            }
+        }
+    }
 }
