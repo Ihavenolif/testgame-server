@@ -136,6 +136,8 @@ app.ws("/", function(ws, req){
                                 runningGamesList[name].gameStarted = true
                                 runningGamesList[name].gameTimer = setInterval(game, 1000/60, runningGamesList[name]);
                                 runningGamesList[name].player1 = {
+                                    weaponDamage: 10,
+                                    soldierSpawnCooldown: 0,
                                     health: 100,
                                     soldiers: [],
                                     money: 0,
@@ -153,6 +155,8 @@ app.ws("/", function(ws, req){
                                     xpos: 350
                                 }
                                 runningGamesList[name].player2 = {
+                                    weaponDamage: 10,
+                                    soldierSpawnCooldown: 0,
                                     health: 100,
                                     soldiers: [],
                                     money: 0,
@@ -230,7 +234,7 @@ app.ws("/", function(ws, req){
                 break
             case "yellowSoldierSpawn":
                 if(input.player == 1){
-                    if(runningGamesList[input.name].player1.money >= 10){
+                    if(runningGamesList[input.name].player1.money >= 10 && runningGamesList[input.name].player1.soldierSpawnCooldown == 0){
                         runningGamesList[input.name].player1.soldiers.push({
                             type: "yellow",
                             health: 10,
@@ -241,13 +245,10 @@ app.ws("/", function(ws, req){
                             height: 20
                         })
                         runningGamesList[input.name].player1.money -= 10
-                        ws.send(JSON.stringify({
-                            request: "yellowSoldierSpawn",
-                            successful: true
-                        }))
+                        runningGamesList[input.name].player1.soldierSpawnCooldown = 60
                     }
                 }else{
-                    if(runningGamesList[input.name].player2.money >= 10){
+                    if(runningGamesList[input.name].player2.money >= 10 && runningGamesList[input.name].player2.soldierSpawnCooldown == 0){
                         runningGamesList[input.name].player2.soldiers.push({
                             type: "yellow",
                             health: 10,
@@ -258,10 +259,38 @@ app.ws("/", function(ws, req){
                             height: 20
                         })
                         runningGamesList[input.name].player2.money -= 10
-                        ws.send(JSON.stringify({
-                            request: "yellowSoldierSpawn",
-                            successful: true
-                        }))
+                        runningGamesList[input.name].player2.soldierSpawnCooldown = 60
+                    }
+                }
+                break
+            case "blueSoldierSpawn":
+                if(input.player == 1){
+                    if(runningGamesList[input.name].player1.money >= 20 && runningGamesList[input.name].player1.soldierSpawnCooldown == 0){
+                        runningGamesList[input.name].player1.soldiers.push({
+                            type: "blue",
+                            health: 15,
+                            xpos: runningGamesList[input.name].player1.xpos,
+                            ypos: 650,
+                            alive: true,
+                            width: 30,
+                            height: 30
+                        })
+                        runningGamesList[input.name].player1.money -= 20
+                        runningGamesList[input.name].player1.soldierSpawnCooldown = 90
+                    }
+                }else{
+                    if(runningGamesList[input.name].player2.money >= 20 && runningGamesList[input.name].player2.soldierSpawnCooldown == 0){
+                        runningGamesList[input.name].player2.soldiers.push({
+                            type: "blue",
+                            health: 15,
+                            xpos: runningGamesList[input.name].player2.xpos,
+                            ypos: 650,
+                            alive: true,
+                            width: 30,
+                            height: 30
+                        })
+                        runningGamesList[input.name].player2.money -= 10
+                        runningGamesList[input.name].player2.soldierSpawnCooldown = 60
                     }
                 }
                 
@@ -345,10 +374,12 @@ function game(game){
         x.ypos -= 10
     }
     /*
-    ---SHOT COOLDOWN RECOVERY---
+    ---COOLDOWN RECOVERY---
     */
     if(game.player1.shootCd > 0) game.player1.shootCd--
     if(game.player2.shootCd > 0) game.player2.shootCd--
+    if(game.player1.soldierSpawnCooldown > 0) game.player1.soldierSpawnCooldown--
+    if(game.player2.soldierSpawnCooldown > 0) game.player2.soldierSpawnCooldown--
     /*
     ---SHOTS CLEANUP---
     */
@@ -374,6 +405,8 @@ function game(game){
             case "yellow":
                 x.ypos -= 3
                 break
+            case "blue":
+                x.ypos -= 2
         }
     }
     for(x of game.player2.soldiers){
@@ -381,6 +414,8 @@ function game(game){
             case "yellow":
                 x.ypos -= 3
                 break
+            case "blue":
+                x.ypos -= 2
         }
     }
     /*
@@ -389,35 +424,45 @@ function game(game){
     for(x of game.player1.soldiers){
         if(x.ypos < 0) {
             x.alive = false 
-            game.player2.health -= 10
+            game.player2.health -= x.health
         }
     }
     for(x of game.player2.soldiers){
         if(x.ypos < 0) {
             x.alive = false
-            game.player1.health -= 10
+            game.player1.health -= x.health
         }
     }
     game.player1.soldiers = filterAlive(game.player1.soldiers)
     game.player2.soldiers = filterAlive(game.player2.soldiers)
     /*
-    ---COLLISIONS PEPEHANDS---
+    ---COLLISIONS---
     */
     for(i of game.player1.soldiers){
         for(ii of game.player2.shots){
             if(collidesWith(i,ii)){
-                i.alive = false
-                ii.alive = false
-                game.player2.money += 10
+                if(i.health <= game.player2.weaponDamage){
+                    i.alive = false
+                    ii.alive = false
+                    game.player2.money += 10
+                }else{
+                    i.health -= game.player2.weaponDamage
+                    ii.alive = false
+                }
             }
         }
     }
     for(i of game.player2.soldiers){
         for(ii of game.player1.shots){
             if(collidesWith(i,ii)){
-                i.alive = false
-                ii.alive = false
-                game.player1.money += 10
+                if(i.health <= game.player1.weaponDamage){
+                    i.alive = false
+                    ii.alive = false
+                    game.player1.money += 10
+                }else{
+                    i.health -= game.player1.weaponDamage
+                    ii.alive = false
+                }
             }
         }
     }
