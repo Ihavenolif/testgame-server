@@ -193,20 +193,22 @@ app.ws("/", function (ws, req) {
                 }
                 break
             case "readyCheck":
-                if (input.player == 1) {
-                    if (runningGamesList[input.name].player1ready) {
-                        runningGamesList[input.name].player1ready = false
+                if(runningGamesList[input.name] !== undefined){
+                    if (input.player == 1) {
+                        if (runningGamesList[input.name].player1ready) {
+                            runningGamesList[input.name].player1ready = false
+                        } else {
+                            runningGamesList[input.name].player1ready = true
+                        }
                     } else {
-                        runningGamesList[input.name].player1ready = true
-                    }
-                } else {
-                    if (runningGamesList[input.name].player2ready) {
-                        runningGamesList[input.name].player2ready = false
-                    } else {
-                        runningGamesList[input.name].player2ready = true
+                        if (runningGamesList[input.name].player2ready) {
+                            runningGamesList[input.name].player2ready = false
+                        } else {
+                            runningGamesList[input.name].player2ready = true
+                        }
                     }
                 }
-                temp = removeTimers(runningGamesList[input.gameName])
+                temp = removeTimers(runningGamesList[input.name])
                 temp.request = "readyCheck"
                 ws.send(JSON.stringify(temp))
                 break
