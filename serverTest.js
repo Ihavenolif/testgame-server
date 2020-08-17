@@ -1,2 +1,2 @@
-server = require("./server")
+server = require("./modules/server")
 server.start()
