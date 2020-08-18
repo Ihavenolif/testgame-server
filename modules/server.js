@@ -3,6 +3,8 @@ const app = express()
 const expressWs = require("express-ws")(app)
 const basic = require("./basic")
 const game = require("./game")
+const aWss = expressWs.getWss("/")
+const connectedPlayers = {}
 
 app.get("/", function (req, res) {
     res.send("Hello World")
@@ -14,10 +16,18 @@ app.ws("/", function (ws, req) {
         //console.log(input)
         switch (input.request) {
             case "login":
-                ws.send(JSON.stringify({
-                    request: "loginSuccessful",
-                    message: "Welcome, " + input.playerName
-                }))
+                if(connectedPlayers[input.playerName] == undefined){
+                    ws.send(JSON.stringify({
+                        request: "loginSuccessful",
+                        message: "Welcome, " + input.playerName
+                    }))
+                    connectedPlayers[input.playerName] = ws
+                    ws.playerName = input.playerName
+                }else{
+                    ws.send(JSON.stringify({
+                        request: "nameAlreadyExists"
+                    }))
+                }
                 break
             case "getGamesList":
                 temp = basic.sendableGamesList(gamesList)
@@ -30,6 +40,7 @@ app.ws("/", function (ws, req) {
                         name: input["gameName"],
                         password: input["password"],
                         player1: input["playerName"],
+                        player1ws: ws,
                         player2: null
                     }
                     ws.send(JSON.stringify(input))
@@ -44,62 +55,69 @@ app.ws("/", function (ws, req) {
                     runningGamesList[input.name] = basic.copyObj(gamesList[input.name])
                     gamesList[input.name] = undefined
                     runningGamesList[input.name].player2 = input.playerName
+                    runningGamesList[input.name].player2ws = ws
                     runningGamesList[input.name].player1ready = false
                     runningGamesList[input.name].player2ready = false
                     runningGamesList[input.name].gameStarted = false
                     runningGamesList[input.name].gameFinished = false
-                    if (runningGamesList[input.name]) {
-                        runningGamesList[input.name].lobbyTimer = setInterval((name) => {
-                            if (runningGamesList[name].player1ready && runningGamesList[name].player2ready) {
-                                clearInterval(runningGamesList[name].lobbyTimer)
-                                runningGamesList[name].gameStarted = true
-                                runningGamesList[name].gameTimer = setInterval(game.game, 1000 / 60, runningGamesList[name]);
-                                runningGamesList[name].player1 = {
-                                    scope: true,
-                                    weaponDamage: 10,
-                                    soldierSpawnCooldown: 0,
-                                    health: 100,
-                                    soldiers: [],
-                                    money: 0,
-                                    shootRechargeTime: 1,
-                                    bulletWidth: 4,
-                                    shootCd: 0,
-                                    shots: [],
-                                    left: false,
-                                    up: false,
-                                    right: false,
-                                    down: false,
-                                    ctrl: false,
-                                    shift: false,
-                                    space: false,
-                                    xpos: 350
-                                }
-                                runningGamesList[name].player2 = {
-                                    scope: true,
-                                    weaponDamage: 10,
-                                    soldierSpawnCooldown: 0,
-                                    health: 100,
-                                    soldiers: [],
-                                    money: 0,
-                                    shootRechargeTime: 1,
-                                    bulletWidth: 4,
-                                    shootCd: 0,
-                                    shots: [],
-                                    left: false,
-                                    up: false,
-                                    right: false,
-                                    down: false,
-                                    ctrl: false,
-                                    shift: false,
-                                    space: false,
-                                    xpos: 350
-                                }
+                    runningGamesList[input.name].lobbyTimer = setInterval((name) => {
+                        if (runningGamesList[name].player1ready && runningGamesList[name].player2ready) {
+                            clearInterval(runningGamesList[name].lobbyTimer)
+                            runningGamesList[name].gameStarted = true
+                            runningGamesList[name].gameTimer = setInterval(game.game, 1000 / 60, runningGamesList[name])
+                            runningGamesList[name].player1 = {
+                                scope: true,
+                                weaponDamage: 10,
+                                soldierSpawnCooldown: 0,
+                                health: 100,
+                                soldiers: [],
+                                money: 0,
+                                shootRechargeTime: 1,
+                                bulletWidth: 4,
+                                shootCd: 0,
+                                shots: [],
+                                left: false,
+                                up: false,
+                                right: false,
+                                down: false,
+                                ctrl: false,
+                                shift: false,
+                                space: false,
+                                xpos: 350
                             }
-                        }, 1000, input.name);
-                    }
+                            runningGamesList[name].player2 = {
+                                scope: true,
+                                weaponDamage: 10,
+                                soldierSpawnCooldown: 0,
+                                health: 100,
+                                soldiers: [],
+                                money: 0,
+                                shootRechargeTime: 1,
+                                bulletWidth: 4,
+                                shootCd: 0,
+                                shots: [],
+                                left: false,
+                                up: false,
+                                right: false,
+                                down: false,
+                                ctrl: false,
+                                shift: false,
+                                space: false,
+                                xpos: 350
+                            }
+                        }
+                    }, 1000, input.name)
                     temp = basic.removeTimers(runningGamesList[input.name])
                     temp.request = "joinGame"
                     ws.send(JSON.stringify(temp))
+                }
+                break
+            case "buttonPress":
+                console.log(input)
+                if(input.player == 1){
+                    runningGamesList[input.gameName].player1[input.button] = input.pressed
+                }else{
+                    runningGamesList[input.gameName].player2[input.button] = input.pressed
                 }
                 break
             case "checkGameStatus":
@@ -134,7 +152,7 @@ app.ws("/", function (ws, req) {
                 ws.send(JSON.stringify(temp))
                 break
             case "game":
-                if (input.player == 1) {
+                /*if (input.player == 1) {
                     runningGamesList[input.name].player1.left = input.left
                     runningGamesList[input.name].player1.up = input.up
                     runningGamesList[input.name].player1.right = input.right
@@ -154,6 +172,7 @@ app.ws("/", function (ws, req) {
                 temp = basic.removeTimers(runningGamesList[input.name])
                 temp.request = "game"
                 ws.send(JSON.stringify(temp))
+                break*/
                 break
             case "yellowSoldierSpawn":
                 if (input.player == 1) {
@@ -221,6 +240,7 @@ app.ws("/", function (ws, req) {
     })
     ws.on("close", () => {
         console.log("Connection closed")
+        ws = undefined
     })
 })
 
@@ -235,4 +255,18 @@ exports.start = () => {
     return app.listen(PORT, function () {
         console.log("Server is running on port " + PORT + ". Hit CTRL+C to stop.");
     })
+}
+
+exports.gameSend = (obj, ws1, ws2) => {
+    try{
+        ws1.send(JSON.stringify(obj))
+    }catch(error){
+        console.log(error)
+    }
+    try{
+        ws2.send(JSON.stringify(obj))
+    }catch(error){
+        console.log(error)
+    }
+    
 }

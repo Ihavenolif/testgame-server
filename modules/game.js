@@ -1,7 +1,12 @@
 const basic = require("./basic")
 const collision = require("./collision")
+const server = require("./server")
 
 exports.game = (game) => {
+    gameObj = {}
+    gameObj.request = "game"
+    gameObj.player1 = {}
+    gameObj.player2 = {}
     /*
     ---PLAYER MOVEMENT---
     */
@@ -10,22 +15,26 @@ exports.game = (game) => {
         if (game.player1.shift && game.player1.ctrl || !game.player1.shift && !game.player1.ctrl) game.player1.xpos -= 6
         if (game.player1.shift && !game.player1.ctrl) game.player1.xpos -= 12
         if (!game.player1.shift && game.player1.ctrl) game.player1.xpos -= 3
+        gameObj.player1.xpos = game.player1.xpos
     }
     if (game.player1.right && game.player1.xpos <= 700) {
         if (game.player1.shift && game.player1.ctrl || !game.player1.shift && !game.player1.ctrl) game.player1.xpos += 6
         if (game.player1.shift && !game.player1.ctrl) game.player1.xpos += 12
         if (!game.player1.shift && game.player1.ctrl) game.player1.xpos += 3
+        gameObj.player1.xpos = game.player1.xpos
     }
 
     if (game.player2.left && game.player2.xpos >= 0) {
         if (game.player2.shift && game.player2.ctrl || !game.player2.shift && !game.player2.ctrl) game.player2.xpos -= 6
         if (game.player2.shift && !game.player2.ctrl) game.player2.xpos -= 12
         if (!game.player2.shift && game.player2.ctrl) game.player2.xpos -= 3
+        gameObj.player2.xpos = game.player2.xpos
     }
     if (game.player2.right && game.player2.xpos <= 700) {
         if (game.player2.shift && game.player2.ctrl || !game.player2.shift && !game.player2.ctrl) game.player2.xpos += 6
         if (game.player2.shift && !game.player2.ctrl) game.player2.xpos += 12
         if (!game.player2.shift && game.player2.ctrl) game.player2.xpos += 3
+        gameObj.player2.xpos = game.player2.xpos
     }
     /*
     ---SHOOTING---
@@ -151,5 +160,18 @@ exports.game = (game) => {
                 }
             }
         }
+    }
+
+    gameObj.player1.shots = game.player1.shots
+    gameObj.player2.shots = game.player2.shots
+    gameObj.player1.soldiers = game.player1.soldiers
+    gameObj.player2.soldiers = game.player2.soldiers
+    gameObj.player1.money = game.player1.money
+    gameObj.player2.money = game.player2.money
+    gameObj.player1.health = game.player1.health
+    gameObj.player2.health = game.player2.health
+
+    if(gameObj != {}){
+        server.gameSend(gameObj, game.player1ws, game.player2ws)
     }
 }

@@ -10,6 +10,6 @@ exports.collidesWithY = (obj1, obj2) => {
     } else return false
 }
 
-exports.collidesWithX = (obj1, obj2) => {
+exports.collidesWith = (obj1, obj2) => {
     return exports.collidesWithX(obj1, obj2) && exports.collidesWithY(obj1, obj2)
 }
